@@ -1,25 +1,23 @@
 # setup-windows.ps1
 # Run with: powershell -ExecutionPolicy Bypass -File setup-windows.ps1
 
-# ── Helpers ────────────────────────────────────────────────────────────────────
 function Write-Header {
     Clear-Host
     Write-Host ""
-    Write-Host "  ╔══════════════════════════════════════════╗" -ForegroundColor Magenta
-    Write-Host "  ║        Windows Dev Environment Setup     ║" -ForegroundColor Magenta
-    Write-Host "  ╚══════════════════════════════════════════╝" -ForegroundColor Magenta
+    Write-Host "  ==========================================" -ForegroundColor Magenta
+    Write-Host "      Windows Dev Environment Setup" -ForegroundColor Magenta
+    Write-Host "  ==========================================" -ForegroundColor Magenta
     Write-Host ""
 }
 
-function Write-Step   { param($msg) Write-Host "`n  ► $msg" -ForegroundColor Cyan }
-function Write-Done   { param($msg) Write-Host "    ✓ $msg" -ForegroundColor Green }
-function Write-Skip   { param($msg) Write-Host "    ✓ $msg (already done)" -ForegroundColor Yellow }
-function Write-Fail   { param($msg) Write-Host "    ✗ $msg" -ForegroundColor Red; exit 1 }
-function Write-Info   { param($msg) Write-Host "    · $msg" -ForegroundColor Gray }
+function Write-Step   { param($msg) Write-Host "`n  > $msg" -ForegroundColor Cyan }
+function Write-Done   { param($msg) Write-Host "    [OK] $msg" -ForegroundColor Green }
+function Write-Skip   { param($msg) Write-Host "    [--] $msg (already done)" -ForegroundColor Yellow }
+function Write-Info   { param($msg) Write-Host "    ... $msg" -ForegroundColor Gray }
+function Write-Fail   { param($msg) Write-Host "    [!!] $msg" -ForegroundColor Red; exit 1 }
 
 function Refresh-Path {
-    $env:PATH = [System.Environment]::GetEnvironmentVariable("PATH","Machine") `
-              + ";" + [System.Environment]::GetEnvironmentVariable("PATH","User")
+    $env:PATH = [System.Environment]::GetEnvironmentVariable("PATH", "Machine") + ";" + [System.Environment]::GetEnvironmentVariable("PATH", "User")
 }
 
 function Is-Installed { param($id)
@@ -27,22 +25,21 @@ function Is-Installed { param($id)
     return $null -ne $result
 }
 
-# ── Start ──────────────────────────────────────────────────────────────────────
 Write-Header
 
-# ── winget ────────────────────────────────────────────────────────────────────
+# winget check
 Write-Step "Checking winget..."
 if (-not (Get-Command winget -ErrorAction SilentlyContinue)) {
     Write-Fail "winget not found. Install 'App Installer' from the Microsoft Store, then re-run."
 }
 Write-Done "winget is available"
 
-# ── Packages ──────────────────────────────────────────────────────────────────
+# Packages
 $packages = @(
-    @{ Id = "Git.Git";      Name = "Git"                       },
-    @{ Id = "GitHub.cli";   Name = "GitHub CLI (gh)"           },
-    @{ Id = "wez.wezterm";  Name = "WezTerm"                   },
-    @{ Id = "Schniz.fnm";   Name = "fnm (Node Version Manager)"}
+    @{ Id = "Git.Git";      Name = "Git"                        },
+    @{ Id = "GitHub.cli";   Name = "GitHub CLI (gh)"            },
+    @{ Id = "wez.wezterm";  Name = "WezTerm"                    },
+    @{ Id = "Schniz.fnm";   Name = "fnm (Node Version Manager)" }
 )
 
 foreach ($pkg in $packages) {
@@ -51,8 +48,7 @@ foreach ($pkg in $packages) {
         Write-Skip "$($pkg.Name) is already installed"
     } else {
         Write-Info "Installing $($pkg.Name) via winget..."
-        winget install --id $pkg.Id --exact --silent `
-            --accept-package-agreements --accept-source-agreements
+        winget install --id $pkg.Id --exact --silent --accept-package-agreements --accept-source-agreements
         if ($LASTEXITCODE -ne 0) { Write-Fail "Failed to install $($pkg.Name)" }
         Write-Done "$($pkg.Name) installed"
     }
@@ -60,7 +56,21 @@ foreach ($pkg in $packages) {
 
 Refresh-Path
 
-# ── GitHub Auth ───────────────────────────────────────────────────────────────
+# winget sometimes installs fnm without adding it to PATH — fix that
+if (-not (Get-Command fnm -ErrorAction SilentlyContinue)) {
+    $fnmExe = Get-ChildItem "$env:LOCALAPPDATA\Microsoft\WinGet\Packages" -Filter "fnm.exe" -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
+    if ($fnmExe) {
+        $fnmDir = $fnmExe.DirectoryName
+        $env:PATH += ";$fnmDir"
+        $userPath = [System.Environment]::GetEnvironmentVariable("PATH", "User")
+        if ($userPath -notlike "*$fnmDir*") {
+            [System.Environment]::SetEnvironmentVariable("PATH", "$userPath;$fnmDir", "User")
+        }
+        Write-Info "Added fnm to PATH manually (winget didn't do it)"
+    }
+}
+
+# GitHub auth
 Write-Step "Checking GitHub authentication..."
 $ghStatus = gh auth status 2>&1
 if ($LASTEXITCODE -eq 0) {
@@ -72,7 +82,7 @@ if ($LASTEXITCODE -eq 0) {
     Write-Done "GitHub login complete"
 }
 
-# ── Git Config ────────────────────────────────────────────────────────────────
+# Git config
 Write-Step "Checking git identity..."
 $gitName  = git config --global user.name  2>$null
 $gitEmail = git config --global user.email 2>$null
@@ -92,47 +102,70 @@ if ($gitName -and $gitEmail) {
     Write-Done "Git identity set to '$gitName <$gitEmail>'"
 }
 
-# ── Node via fnm ──────────────────────────────────────────────────────────────
+# Node via fnm
 Write-Step "Checking Node.js..."
 Refresh-Path
 
 if (Get-Command node -ErrorAction SilentlyContinue) {
     Write-Skip "Node.js $(node --version) already installed"
 } else {
-    # Add fnm init to PowerShell profile if not already there
     if (-not (Test-Path $PROFILE)) { New-Item -Path $PROFILE -Force | Out-Null }
     $profileContent = Get-Content $PROFILE -ErrorAction SilentlyContinue
     if (-not ($profileContent -match "fnm env")) {
-        Add-Content $PROFILE "`nfnm env --use-on-cd | Out-String | Invoke-Expression"
-        Write-Info "Added fnm init to PowerShell profile"
-    }
+        $fnmProfileBlock = @'
 
+# Add fnm to PATH (winget doesn't do this automatically)
+$fnmExe = Get-ChildItem "$env:LOCALAPPDATA\Microsoft\WinGet\Packages" -Filter "fnm.exe" -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
+if ($fnmExe) { $env:PATH += ";$($fnmExe.DirectoryName)" }
+
+# Activate fnm
+fnm env --use-on-cd | Out-String | Invoke-Expression
+
+# Add claude to PATH
+$env:PATH += ";$env:USERPROFILE\.local\bin"
+'@
+        Add-Content $PROFILE $fnmProfileBlock
+        Write-Info "Added fnm + claude PATH setup to PowerShell profile"
+    }
     Write-Info "Installing Node.js LTS via fnm..."
+    # Activate fnm for this session FIRST, then install
+    fnm env --use-on-cd | Out-String | Invoke-Expression
     fnm install --lts
     fnm use lts-latest
     fnm default lts-latest
     Refresh-Path
-    Write-Done "Node.js $(node --version) installed"
+    Write-Done "Node.js installed"
 }
 
-# ── Claude Code ───────────────────────────────────────────────────────────────
+# Claude Code
 Write-Step "Checking Claude Code..."
 if (Get-Command claude -ErrorAction SilentlyContinue) {
     Write-Skip "Claude Code already installed"
 } else {
-    Write-Info "Installing Claude Code via npm..."
-    npm install -g @anthropic-ai/claude-code
-    if ($LASTEXITCODE -ne 0) { Write-Fail "Failed to install Claude Code" }
+    Write-Info "Installing Claude Code..."
+    try {
+        irm https://claude.ai/install.ps1 | iex
+    } catch {
+        Write-Fail "Failed to install Claude Code: $_"
+    }
+    # The installer puts claude in ~/.local/bin which may not be in PATH
+    $localBin = "$env:USERPROFILE\.local\bin"
+    $userPath = [System.Environment]::GetEnvironmentVariable("PATH", "User")
+    if ($userPath -notlike "*$localBin*") {
+        [System.Environment]::SetEnvironmentVariable("PATH", "$userPath;$localBin", "User")
+        $env:PATH += ";$localBin"
+        Write-Info "Added $localBin to PATH"
+    }
     Write-Done "Claude Code installed"
 }
 
-# ── Done ──────────────────────────────────────────────────────────────────────
+# Done
 Write-Host ""
-Write-Host "  ╔══════════════════════════════════════════╗" -ForegroundColor Green
-Write-Host "  ║       Windows Setup Complete! 🎉         ║" -ForegroundColor Green
-Write-Host "  ╚══════════════════════════════════════════╝" -ForegroundColor Green
+Write-Host "  ==========================================" -ForegroundColor Green
+Write-Host "        Windows Setup Complete!" -ForegroundColor Green
+Write-Host "  ==========================================" -ForegroundColor Green
 Write-Host ""
 Write-Host "  Next steps:" -ForegroundColor White
-Write-Host "    • Restart your terminal so PATH changes take effect" -ForegroundColor Gray
-Write-Host "    • Open WSL and run: bash setup-wsl.sh" -ForegroundColor Gray
+Write-Host "    - Restart your terminal so PATH changes take effect" -ForegroundColor Gray
+Write-Host "    - Open WSL and run: bash setup-wsl.sh" -ForegroundColor Gray
 Write-Host ""

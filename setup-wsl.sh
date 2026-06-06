@@ -4,22 +4,22 @@
 
 set -euo pipefail
 
-# ── Colors (fallback if gum not yet installed) ─────────────────────────────────
+# Colors
 GREEN='\033[0;32m'; YELLOW='\033[1;33m'; CYAN='\033[0;36m'
 RED='\033[0;31m';   MAGENTA='\033[0;35m'; BOLD='\033[1m'; NC='\033[0m'
 
-step()     { echo -e "\n${CYAN}  ► $1${NC}"; }
-done_msg() { echo -e "    ${GREEN}✓ $1${NC}"; }
-skip()     { echo -e "    ${YELLOW}✓ $1 (already done)${NC}"; }
-info()     { echo -e "    ${NC}· $1${NC}"; }
-fail()     { echo -e "    ${RED}✗ $1${NC}"; exit 1; }
+step()     { echo -e "\n${CYAN}  > $1${NC}"; }
+done_msg() { echo -e "    ${GREEN}[OK] $1${NC}"; }
+skip()     { echo -e "    ${YELLOW}[--] $1 (already done)${NC}"; }
+info()     { echo -e "    · $1"; }
+fail()     { echo -e "    ${RED}[!!] $1${NC}"; exit 1; }
 
-# ── Header ────────────────────────────────────────────────────────────────────
+# Header
 clear
 echo -e "${MAGENTA}${BOLD}"
-echo "  ╔══════════════════════════════════════════╗"
-echo "  ║         WSL Dev Environment Setup        ║"
-echo "  ╚══════════════════════════════════════════╝"
+echo "  =========================================="
+echo "       WSL Dev Environment Setup"
+echo "  =========================================="
 echo -e "${NC}"
 
 # ── gum ───────────────────────────────────────────────────────────────────────
@@ -35,6 +35,45 @@ else
         | sudo tee /etc/apt/sources.list.d/charm.list > /dev/null
     sudo apt update -qq && sudo apt install -y gum
     done_msg "gum installed"
+fi
+
+# ── System packages ───────────────────────────────────────────────────────────
+step "Installing system packages..."
+gum spin --spinner dot --title "Updating apt..." -- sudo apt update -qq
+
+PACKAGES=(
+    build-essential   # gcc, make, etc. — needed by many tools
+    curl wget         # http utils
+    git               # version control
+    unzip zip         # archives
+    jq                # json parsing in terminal
+    fzf               # fuzzy finder
+    ripgrep           # fast grep (rg)
+    bat               # better cat (installed as batcat on ubuntu)
+    htop              # process monitor
+    tree              # directory tree viewer
+)
+
+MISSING=()
+for pkg in "${PACKAGES[@]}"; do
+    # skip comments
+    [[ "$pkg" == \#* ]] && continue
+    if ! dpkg -s "$pkg" &>/dev/null 2>&1; then
+        MISSING+=("$pkg")
+    fi
+done
+
+if [ ${#MISSING[@]} -eq 0 ]; then
+    skip "All system packages already installed"
+else
+    gum spin --spinner dot --title "Installing system packages..." -- \
+        sudo apt install -y "${MISSING[@]}"
+    done_msg "System packages installed"
+fi
+
+# bat is installed as 'batcat' on Ubuntu — add alias if not already there
+if ! grep -q 'alias bat=' "$HOME/.bashrc" 2>/dev/null; then
+    echo "alias bat='batcat'" >> "$HOME/.bashrc"
 fi
 
 # ── GitHub CLI ────────────────────────────────────────────────────────────────
@@ -61,9 +100,7 @@ if gh auth status &>/dev/null; then
     skip "Already logged into GitHub"
 else
     echo ""
-    gum style \
-        --border rounded --padding "0 2" \
-        --border-foreground 212 \
+    gum style --border rounded --padding "0 2" --border-foreground 212 \
         "You'll be prompted to log in to GitHub."
     echo ""
     gh auth login
@@ -80,14 +117,39 @@ if [ -n "$GIT_NAME" ] && [ -n "$GIT_EMAIL" ]; then
 else
     echo ""
     if [ -z "$GIT_NAME" ]; then
-        GIT_NAME=$(gum input --placeholder "Your full name" --prompt "  Name › ")
+        GIT_NAME=$(gum input --placeholder "Your full name" --prompt "  Name > ")
         git config --global user.name "$GIT_NAME"
     fi
     if [ -z "$GIT_EMAIL" ]; then
-        GIT_EMAIL=$(gum input --placeholder "your@email.com" --prompt "  Email › ")
+        GIT_EMAIL=$(gum input --placeholder "your@email.com" --prompt "  Email > ")
         git config --global user.email "$GIT_EMAIL"
     fi
     done_msg "Git identity set to '$GIT_NAME <$GIT_EMAIL>'"
+fi
+
+# ── Miniconda ─────────────────────────────────────────────────────────────────
+step "Checking Miniconda..."
+if [ -d "$HOME/miniconda3" ] || command -v conda &>/dev/null; then
+    skip "Miniconda already installed"
+else
+    gum spin --spinner dot --title "Downloading Miniconda..." -- \
+        bash -c 'curl -fsSL https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh -o /tmp/miniconda.sh'
+    gum spin --spinner dot --title "Installing Miniconda..." -- \
+        bash /tmp/miniconda.sh -b -p "$HOME/miniconda3"
+    rm /tmp/miniconda.sh
+
+    # Init conda for bash
+    "$HOME/miniconda3/bin/conda" init bash
+
+    # Disable auto-activation of base env (keeps shell clean)
+    "$HOME/miniconda3/bin/conda" config --set auto_activate_base false
+
+    done_msg "Miniconda installed (run 'conda activate base' to use)"
+fi
+
+# Source conda for this session
+if [ -f "$HOME/miniconda3/etc/profile.d/conda.sh" ]; then
+    . "$HOME/miniconda3/etc/profile.d/conda.sh"
 fi
 
 # ── nvm ───────────────────────────────────────────────────────────────────────
@@ -98,7 +160,6 @@ else
     gum spin --spinner dot --title "Installing nvm..." -- \
         bash -c 'curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.3/install.sh | bash'
 
-    # Add nvm init to .bashrc if not already there
     if ! grep -q 'NVM_DIR' "$HOME/.bashrc"; then
         cat >> "$HOME/.bashrc" << 'EOF'
 
@@ -124,6 +185,30 @@ else
     done_msg "Node.js $(node --version) installed"
 fi
 
+# ── Starship prompt ───────────────────────────────────────────────────────────
+step "Checking Starship prompt..."
+if command -v starship &>/dev/null; then
+    skip "Starship already installed"
+else
+    gum spin --spinner dot --title "Installing Starship..." -- \
+        bash -c 'curl -sS https://starship.rs/install.sh | sh -s -- --yes'
+
+    if ! grep -q 'starship init' "$HOME/.bashrc"; then
+        echo 'eval "$(starship init bash)"' >> "$HOME/.bashrc"
+    fi
+    done_msg "Starship installed"
+fi
+
+# Copy starship config
+mkdir -p "$HOME/.config"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+if [ -f "$SCRIPT_DIR/starship.toml" ]; then
+    cp "$SCRIPT_DIR/starship.toml" "$HOME/.config/starship.toml"
+    done_msg "Starship config copied"
+else
+    info "starship.toml not found next to script, skipping"
+fi
+
 # ── Claude Code ───────────────────────────────────────────────────────────────
 step "Checking Claude Code..."
 if command -v claude &>/dev/null; then
@@ -137,11 +222,14 @@ fi
 # ── Done ──────────────────────────────────────────────────────────────────────
 echo ""
 echo -e "${GREEN}${BOLD}"
-echo "  ╔══════════════════════════════════════════╗"
-echo "  ║         WSL Setup Complete! 🎉           ║"
-echo "  ╚══════════════════════════════════════════╝"
+echo "  =========================================="
+echo "        WSL Setup Complete!"
+echo "  =========================================="
 echo -e "${NC}"
 echo -e "  ${BOLD}Next steps:${NC}"
-echo -e "    • Restart your terminal or run: ${CYAN}source ~/.bashrc${NC}"
-echo -e "    • Start Claude Code with: ${CYAN}claude${NC}"
+echo -e "    - Use Python with: ${CYAN}conda activate base${NC}"
+echo -e "    - Start Claude Code with: ${CYAN}claude${NC}"
 echo ""
+
+# Source bashrc so everything is live immediately
+source "$HOME/.bashrc"
