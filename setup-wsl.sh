@@ -158,7 +158,7 @@ if [ -d "$HOME/.nvm" ]; then
     skip "nvm already installed"
 else
     gum spin --spinner dot --title "Installing nvm..." -- \
-        bash -c 'curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.3/install.sh | bash'
+        bash -c 'curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.5/install.sh | bash'
 
     if ! grep -q 'NVM_DIR' "$HOME/.bashrc"; then
         cat >> "$HOME/.bashrc" << 'EOF'
@@ -182,6 +182,9 @@ if command -v node &>/dev/null; then
 else
     gum spin --spinner dot --title "Installing Node.js LTS..." -- \
         bash -c ". $HOME/.nvm/nvm.sh && nvm install --lts && nvm alias default node"
+    # Re-source nvm so node/npm are available in this session after install
+    export NVM_DIR="$HOME/.nvm"
+    \. "$NVM_DIR/nvm.sh"
     done_msg "Node.js $(node --version) installed"
 fi
 
@@ -215,7 +218,7 @@ if command -v claude &>/dev/null; then
     skip "Claude Code already installed"
 else
     gum spin --spinner dot --title "Installing Claude Code..." -- \
-        npm install -g @anthropic-ai/claude-code
+        bash -c 'curl -fsSL https://claude.ai/install.sh | bash'
     done_msg "Claude Code installed"
 fi
 
@@ -226,10 +229,16 @@ echo "  =========================================="
 echo "        WSL Setup Complete!"
 echo "  =========================================="
 echo -e "${NC}"
-echo -e "  ${BOLD}Next steps:${NC}"
+echo -e "  ${BOLD}Step 1 — Run this to activate everything:${NC}"
+echo -e "    ${CYAN}source ~/.bashrc${NC}"
+echo ""
+echo -e "  ${BOLD}Step 2 — If node/npm aren't found after that, run:${NC}"
+echo -e "    ${CYAN}export NVM_DIR=\"\$HOME/.nvm\" && . \"\$NVM_DIR/nvm.sh\"${NC}"
+echo ""
+echo -e "  ${BOLD}Step 3 — If Claude Code isn't found, run:${NC}"
+echo -e "    ${CYAN}curl -fsSL https://claude.ai/install.sh | bash${NC}"
+echo ""
+echo -e "  ${BOLD}Then:${NC}"
 echo -e "    - Use Python with: ${CYAN}conda activate base${NC}"
 echo -e "    - Start Claude Code with: ${CYAN}claude${NC}"
 echo ""
-
-# Source bashrc so everything is live immediately
-source "$HOME/.bashrc"

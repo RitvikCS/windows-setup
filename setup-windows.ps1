@@ -34,12 +34,12 @@ if (-not (Get-Command winget -ErrorAction SilentlyContinue)) {
 }
 Write-Done "winget is available"
 
-# Packages
+# Packages via winget
 $packages = @(
-    @{ Id = "Git.Git";      Name = "Git"                        },
-    @{ Id = "GitHub.cli";   Name = "GitHub CLI (gh)"            },
-    @{ Id = "wez.wezterm";  Name = "WezTerm"                    },
-    @{ Id = "Schniz.fnm";   Name = "fnm (Node Version Manager)" }
+    @{ Id = "Git.Git";    Name = "Git"                        },
+    @{ Id = "GitHub.cli"; Name = "GitHub CLI (gh)"            },
+    @{ Id = "wez.wezterm"; Name = "WezTerm"                   },
+    @{ Id = "Schniz.fnm"; Name = "fnm (Node Version Manager)" }
 )
 
 foreach ($pkg in $packages) {
@@ -68,6 +68,29 @@ if (-not (Get-Command fnm -ErrorAction SilentlyContinue)) {
         }
         Write-Info "Added fnm to PATH manually (winget didn't do it)"
     }
+}
+
+# Scoop (needed for Starship — winget doesn't install it properly)
+Write-Step "Checking Scoop..."
+if (Get-Command scoop -ErrorAction SilentlyContinue) {
+    Write-Skip "Scoop already installed"
+} else {
+    Write-Info "Installing Scoop..."
+    Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser -Force
+    Invoke-RestMethod -Uri https://get.scoop.sh | Invoke-Expression
+    Refresh-Path
+    Write-Done "Scoop installed"
+}
+
+# Starship via Scoop
+Write-Step "Checking Starship..."
+if (Get-Command starship -ErrorAction SilentlyContinue) {
+    Write-Skip "Starship already installed"
+} else {
+    Write-Info "Installing Starship via Scoop..."
+    scoop install starship
+    Refresh-Path
+    Write-Done "Starship installed"
 }
 
 # GitHub auth
@@ -123,12 +146,14 @@ fnm env --use-on-cd | Out-String | Invoke-Expression
 
 # Add claude to PATH
 $env:PATH += ";$env:USERPROFILE\.local\bin"
+
+# Starship prompt (Scoop puts it in PATH automatically)
+Invoke-Expression (&starship init powershell)
 '@
         Add-Content $PROFILE $fnmProfileBlock
-        Write-Info "Added fnm + claude PATH setup to PowerShell profile"
+        Write-Info "Added profile setup (fnm, claude, starship)"
     }
     Write-Info "Installing Node.js LTS via fnm..."
-    # Activate fnm for this session FIRST, then install
     fnm env --use-on-cd | Out-String | Invoke-Expression
     fnm install --lts
     fnm use lts-latest
@@ -148,7 +173,6 @@ if (Get-Command claude -ErrorAction SilentlyContinue) {
     } catch {
         Write-Fail "Failed to install Claude Code: $_"
     }
-    # The installer puts claude in ~/.local/bin which may not be in PATH
     $localBin = "$env:USERPROFILE\.local\bin"
     $userPath = [System.Environment]::GetEnvironmentVariable("PATH", "User")
     if ($userPath -notlike "*$localBin*") {
@@ -157,6 +181,18 @@ if (Get-Command claude -ErrorAction SilentlyContinue) {
         Write-Info "Added $localBin to PATH"
     }
     Write-Done "Claude Code installed"
+}
+
+# Starship config
+Write-Step "Copying Starship config..."
+$scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
+$starshipSrc = Join-Path $scriptDir "starship.toml"
+if (Test-Path $starshipSrc) {
+    New-Item -ItemType Directory -Force -Path "$env:USERPROFILE\.config" | Out-Null
+    Copy-Item $starshipSrc "$env:USERPROFILE\.config\starship.toml" -Force
+    Write-Done "Starship config copied"
+} else {
+    Write-Info "starship.toml not found next to script, skipping"
 }
 
 # Done
