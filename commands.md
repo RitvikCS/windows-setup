@@ -4,7 +4,17 @@ Follow these steps in order. Each section has a check so you know when you're do
 
 ---
 
-## Step 1 — Allow PowerShell Scripts to Run
+## Step 1 — Fix Git Line Endings
+
+Run this once to suppress LF/CRLF warnings:
+
+```powershell
+git config --global core.autocrlf true
+```
+
+---
+
+## Step 2 — Allow PowerShell Scripts to Run
 
 Open PowerShell as Administrator and run:
 
@@ -49,7 +59,7 @@ In PowerShell (does **not** need to be Administrator):
 powershell -ExecutionPolicy Bypass -File setup-windows.ps1
 ```
 
-This installs: **Git, GitHub CLI, WezTerm, fnm, Node.js, Claude Code**
+This installs: **Git, GitHub CLI, WezTerm, fnm, Scoop, Starship, Node.js, Claude Code**
 
 It will skip anything already installed and prompt you for your name/email if not set.
 
@@ -65,11 +75,17 @@ Open Ubuntu (from Start menu or `wsl` in PowerShell), navigate to this folder, a
 bash setup-wsl.sh
 ```
 
-This installs: **GitHub CLI, nvm, Node.js, Claude Code** inside Linux.
+This installs: **GitHub CLI, nvm, Node.js, Claude Code, Miniconda, Starship** inside Linux.
 
 It will also prompt you to log into GitHub and set your git identity if not already done.
 
 > After it finishes, run `source ~/.bashrc` or restart your terminal.
+
+To have conda's base environment activate automatically on every shell open:
+
+```bash
+conda config --set auto_activate_base true
+```
 
 ---
 
