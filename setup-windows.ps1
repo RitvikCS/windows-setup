@@ -119,10 +119,27 @@ $packages = @(
     @{ Id = 'Schniz.fnm';                Name = 'fnm (Node versions)'; Command = 'fnm' },
     @{ Id = 'ajeetdsouza.zoxide';        Name = 'zoxide (smarter cd)'; Command = 'zoxide' },
     @{ Id = 'junegunn.fzf';              Name = 'fzf (fuzzy finder)';  Command = 'fzf' },
-    @{ Id = 'BurntSushi.ripgrep.MSVC';   Name = 'ripgrep';          Command = 'rg' }
+    @{ Id = 'BurntSushi.ripgrep.MSVC';   Name = 'ripgrep';          Command = 'rg' },
+    @{ Id = 'sharkdp.fd';                Name = 'fd (better find)';    Command = 'fd' },
+    @{ Id = 'eza-community.eza';         Name = 'eza (better ls)';     Command = 'eza' },
+    @{ Id = 'sharkdp.bat';               Name = 'bat (better cat)';    Command = 'bat' },
+    @{ Id = 'jqlang.jq';                 Name = 'jq (JSON on the CLI)'; Command = 'jq' }
 )
 foreach ($p in $packages) { Install-WingetPackage @p }
 Update-SessionPath
+
+# PSFzf wires fzf into PSReadLine: Ctrl+R history, Ctrl+T files, Alt+C cd (same keys as bash)
+Write-Step 'PSFzf (fzf keybindings for PowerShell)'
+if (Get-Module -ListAvailable PSFzf) {
+    Write-Skip 'already installed'
+} else {
+    try {
+        Install-Module PSFzf -Scope CurrentUser -Repository PSGallery -Force -ErrorAction Stop
+        Write-Done 'installed'
+    } catch {
+        Add-Todo "PSFzf install failed ($($_.Exception.Message)) - fzf still works, just without Ctrl+R/Ctrl+T/Alt+C. Retry: Install-Module PSFzf -Scope CurrentUser"
+    }
+}
 
 # --- Node -----------------------------------------------------------------------
 Write-Step 'Node.js LTS (via fnm)'

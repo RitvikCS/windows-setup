@@ -2,6 +2,9 @@
 # Windows PowerShell 5.1. setup-windows.ps1 copies it to
 # ~/.config/powershell/profile.ps1 - edit the repo copy and re-run the script.
 # Keep this file ASCII-only: 5.1 reads BOM-less files as ANSI.
+# Mirrors devcon-dotfiles/shell/*.sh so muscle memory carries over from bash.
+
+function Test-Command { param($Name) [bool](Get-Command $Name -ErrorAction SilentlyContinue) }
 
 # Claude Code's native installer puts claude.exe here
 $localBin = Join-Path $HOME '.local\bin'
@@ -10,16 +13,43 @@ if ((Test-Path $localBin) -and (($env:PATH -split ';') -notcontains $localBin)) 
 }
 
 # fnm: node version per directory (.nvmrc / .node-version), switches on cd
-if (Get-Command fnm -ErrorAction SilentlyContinue) {
+if (Test-Command fnm) {
     fnm env --use-on-cd --shell powershell | Out-String | Invoke-Expression
 }
 
+# eza/bat replacements. These shadow PowerShell's built-in ls/cat aliases, so
+# they return text, not objects: use Get-ChildItem / Get-Content in pipelines.
+if (Test-Command eza) {
+    Remove-Item Alias:ls -Force -ErrorAction SilentlyContinue
+    function ls   { eza --icons=auto @args }
+    function ll   { eza -l --icons=auto --git @args }
+    function la   { eza -la --icons=auto --git @args }
+    function tree { eza --tree --icons=auto @args }
+}
+if (Test-Command bat) {
+    Remove-Item Alias:cat -Force -ErrorAction SilentlyContinue
+    function cat { bat --paging=never @args }
+}
+
+# fzf: list files with fd (respects .gitignore, includes dotfiles)
+if (Test-Command fd) {
+    $env:FZF_DEFAULT_COMMAND = 'fd --type f --hidden --follow --exclude .git'
+    $env:FZF_CTRL_T_COMMAND = $env:FZF_DEFAULT_COMMAND
+    $env:FZF_ALT_C_COMMAND = 'fd --type d --hidden --follow --exclude .git'
+}
+# Ctrl+R history, Ctrl+T files, Alt+C cd - same keys as bash
+if ((Test-Command fzf) -and (Get-Module -ListAvailable PSFzf)) {
+    Import-Module PSFzf
+    Set-PsFzfOption -PSReadlineChordProvider 'Ctrl+t' -PSReadlineChordReverseHistory 'Ctrl+r'
+    Set-PSReadLineKeyHandler -Key 'Alt+c' -ScriptBlock { Invoke-FuzzySetLocation }
+}
+
 # zoxide: z <dir> jumps, zi picks interactively (uses fzf)
-if (Get-Command zoxide -ErrorAction SilentlyContinue) {
+if (Test-Command zoxide) {
     Invoke-Expression (& { (zoxide init powershell | Out-String) })
 }
 
 # starship last so nothing below clobbers the prompt
-if (Get-Command starship -ErrorAction SilentlyContinue) {
+if (Test-Command starship) {
     Invoke-Expression (& starship init powershell)
 }

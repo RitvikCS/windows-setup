@@ -10,7 +10,7 @@ its `starship.toml` from there too. Change the prompt in that repo, not here.
 
 | Where | What gets installed |
 |---|---|
-| Windows (`setup-windows.ps1`) | Windows Terminal (themed, Nerd Font, Ubuntu as default tab), GitHub CLI, Starship, fnm + Node LTS, zoxide, fzf, ripgrep, Claude Code CLI, PowerShell profile, git identity, `.wslconfig` |
+| Windows (`setup-windows.ps1`) | Windows Terminal (themed, Nerd Font, Ubuntu as default tab), GitHub CLI, Starship, fnm + Node LTS, eza, bat, fd, fzf (+ PSFzf keybindings), zoxide, ripgrep, jq, Claude Code CLI, PowerShell profile with the same aliases as bash (`ls`/`ll`/`la`/`tree` → eza, `cat` → bat), git identity, `.wslconfig` |
 | WSL Ubuntu (`wsl/setup.sh`) | build tools, ripgrep, fd, jq, GitHub CLI, devcon-dotfiles, fnm + Node LTS, Neovim ≥ 0.11.2, Miniforge (conda), Claude Code CLI, git identity |
 
 ## Before you start (by hand, once)
@@ -82,6 +82,10 @@ Both scripts are safe to re-run, e.g. after `git pull`. They skip whatever is al
 done and back up any file they replace (`*.bak`).
 
 ## Day to day
+
+- **Same keys on both sides:** `Ctrl+R` history, `Ctrl+T` file picker, `Alt+C` cd into a
+  folder, `z <part-of-dir>` to jump, `zi` to pick. In PowerShell, `ls`/`cat` are eza/bat and
+  return text, so use `Get-ChildItem` / `Get-Content` when piping to PowerShell commands.
 
 - **Keep code inside WSL** (`~/dev/...`), not under `/mnt/c`. Cross-filesystem access is
   many times slower, and file watchers misbehave there. `open .` opens the current WSL folder
