@@ -1,5 +1,8 @@
 # windows-setup
 
+> **Setting up by hand?** Follow [GUIDE.md](GUIDE.md): every step is typed or copied, and no scripts run.
+> The scripts below automate the same steps but haven't been tested on a real Windows machine yet.
+
 Sets up a Windows laptop (work or personal) for development: Windows Terminal
 with the same Catppuccin Mocha Starship prompt as my Linux machines, Node and
 Claude Code on Windows, and a full Linux toolchain inside WSL.
