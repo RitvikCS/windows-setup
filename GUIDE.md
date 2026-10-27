@@ -248,6 +248,36 @@ git config --file $HOME\.gitconfig-personal user.email "you@personal.com"
 git config --global includeIf.gitdir:~/personal/.path "~/.gitconfig-personal"
 ```
 
+## 5a. VS Code: font and default terminal
+
+Without this, VS Code's terminal shows boxes instead of the prompt icons and may open the old
+Windows PowerShell 5.1.
+
+**Ctrl+Shift+P** → **Open User Settings (JSON)**. Copy from
+[windows/vscode-settings.json](https://github.com/RitvikCS/windows-setup/blob/main/windows/vscode-settings.json)
+(click **Raw**):
+
+- File is empty or just `{}` → replace everything with it.
+- File already has settings → copy only the four lines inside the braces and paste them inside your
+  outer `{ }`, with a comma after the line before them.
+
+```json
+{
+    "terminal.integrated.fontFamily": "JetBrainsMono Nerd Font",
+    "terminal.integrated.defaultProfile.windows": "PowerShell",
+    "editor.fontFamily": "JetBrainsMono Nerd Font, Consolas, monospace",
+    "editor.fontLigatures": true
+}
+```
+
+In VS Code's terminal list, **PowerShell** is version 7 and **Windows PowerShell** is the old 5.1.
+The two `editor.*` lines are optional (ligatures join `=>`, `!=` and similar into one symbol).
+Optional: the **Catppuccin for VSCode** extension → colour theme **Catppuccin Mocha** matches Windows Terminal.
+
+**Check:** a new VS Code terminal (Ctrl+`) shows the same prompt as Windows Terminal, with icons.
+Still boxes → the font name must be exactly `JetBrainsMono Nerd Font` (not the *Nerd Font Mono*
+variant). Red "not recognized" errors → VS Code was open before the installs: **File → Exit** and reopen.
+
 ---
 
 ## 6. Turn on WSL (after IT says yes)
