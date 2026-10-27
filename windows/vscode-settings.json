@@ -1,0 +1,6 @@
+{
+    "terminal.integrated.fontFamily": "JetBrainsMono Nerd Font",
+    "terminal.integrated.defaultProfile.windows": "PowerShell",
+    "editor.fontFamily": "JetBrainsMono Nerd Font, Consolas, monospace",
+    "editor.fontLigatures": true
+}
