@@ -1,0 +1,6 @@
+# Git for Windows defaults to core.autocrlf=true, which would check shell
+# scripts out with CRLF endings. bash then fails on line 1 with
+# "$'\r': command not found", so anything bash reads stays LF everywhere.
+* text=auto
+*.sh text eol=lf
+wsl/** text eol=lf
