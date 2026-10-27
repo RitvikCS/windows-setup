@@ -116,7 +116,7 @@ $packages = @(
     @{ Id = 'Microsoft.WindowsTerminal'; Name = 'Windows Terminal'; Command = 'wt' },
     @{ Id = 'GitHub.cli';                Name = 'GitHub CLI';       Command = 'gh' },
     @{ Id = 'Starship.Starship';         Name = 'Starship prompt';  Command = 'starship' },
-    @{ Id = 'Schniz.fnm';                Name = 'fnm (Node versions)'; Command = 'fnm' },
+    @{ Id = 'OpenJS.NodeJS.LTS';         Name = 'Node.js LTS';      Command = 'node' },
     @{ Id = 'ajeetdsouza.zoxide';        Name = 'zoxide (smarter cd)'; Command = 'zoxide' },
     @{ Id = 'junegunn.fzf';              Name = 'fzf (fuzzy finder)';  Command = 'fzf' },
     @{ Id = 'BurntSushi.ripgrep.MSVC';   Name = 'ripgrep';          Command = 'rg' },
@@ -139,22 +139,6 @@ if (Get-Module -ListAvailable PSFzf) {
     } catch {
         Add-Todo "PSFzf install failed ($($_.Exception.Message)) - fzf still works, just without Ctrl+R/Ctrl+T/Alt+C. Retry: Install-Module PSFzf -Scope CurrentUser"
     }
-}
-
-# --- Node -----------------------------------------------------------------------
-Write-Step 'Node.js LTS (via fnm)'
-if (Get-Command fnm -ErrorAction SilentlyContinue) {
-    fnm env --shell powershell | Out-String | Invoke-Expression
-    if (fnm list | Select-String 'v\d+\.\d+') {
-        Write-Skip "fnm already manages node: $((fnm list | Select-String 'v\d+\.\d+' | Select-Object -First 1).Line.Trim())"
-    } else {
-        fnm install --lts
-        if ($LASTEXITCODE -eq 0) { fnm default lts-latest; fnm use lts-latest }
-        if ($LASTEXITCODE -eq 0) { Write-Done "node $(fnm current)" }
-        else { Add-Todo 'fnm could not install node - run: fnm install --lts; fnm default lts-latest' }
-    }
-} else {
-    Add-Todo 'fnm missing, skipped node - fix fnm above, then re-run'
 }
 
 # --- Claude Code (native installer, auto-updates) -------------------------------

@@ -40,7 +40,7 @@ winget install -e --id Git.Git
 winget install -e --id Microsoft.PowerShell
 winget install -e --id GitHub.cli
 winget install -e --id Starship.Starship
-winget install -e --id Schniz.fnm
+winget install -e --id OpenJS.NodeJS.LTS
 winget install -e --id ajeetdsouza.zoxide
 winget install -e --id junegunn.fzf
 winget install -e --id BurntSushi.ripgrep.MSVC
@@ -52,13 +52,24 @@ winget install -e --id jqlang.jq
 
 Windows 10 only (Windows 11 already has it): `winget install -e --id Microsoft.WindowsTerminal`
 
+> **"Failed when searching source: msstore ... 0x8A15005E certificate did not match"?**
+> Your company inspects HTTPS traffic, and winget's Microsoft Store catalogue refuses that.
+> Update **App Installer** from the Microsoft Store (search it, open its page), reopen the
+> terminal, then stop winget searching the Store unless asked:
+> `winget source edit msstore --explicit true`
+> (On an older winget without `edit`: `winget source remove msstore` from an admin terminal.)
+> Until then, add `--source winget` to each install.
+
+Node is a plain install, not fnm: it works in every terminal and app, not only in
+PowerShell with your profile loaded. Per-project Node versions are handled by fnm in WSL.
+
 **Close every terminal window.** PATH changes only reach new windows.
 
 **Check:** open **Windows Terminal**, open a **PowerShell** tab (PowerShell 7, not
 "Windows PowerShell") and run:
 
 ```powershell
-git --version; gh --version; starship --version; fnm --version; eza --version; bat --version; fd --version; rg --version
+git --version; gh --version; node --version; npm --version; starship --version; zoxide --version; fzf --version; rg --version; fd --version; eza --version; bat --version; jq --version
 ```
 
 Every command should print a version.
@@ -132,7 +143,9 @@ New-Item -ItemType File -Force $PROFILE
 notepad $PROFILE
 ```
 
-Paste this, then save:
+Paste this, then save. It's also in the repo as
+[windows/profile.ps1](https://github.com/RitvikCS/windows-setup/blob/main/windows/profile.ps1)
+(click **Raw** to copy it):
 
 ```powershell
 # Claude Code's installer puts claude.exe here
@@ -140,9 +153,6 @@ $localBin = Join-Path $HOME '.local\bin'
 if ((Test-Path $localBin) -and (($env:PATH -split ';') -notcontains $localBin)) {
     $env:PATH = "$localBin;$env:PATH"
 }
-
-# fnm: node version per project, switches on cd
-fnm env --use-on-cd --shell powershell | Out-String | Invoke-Expression
 
 # eza / bat instead of ls / cat (these return text: use Get-ChildItem / Get-Content in pipelines)
 Remove-Item Alias:ls -Force -ErrorAction SilentlyContinue
@@ -187,18 +197,29 @@ Install-Module PSFzf -Scope CurrentUser
 ## 5. Node, Claude Code, git, GitHub (Windows)
 
 ```powershell
-fnm install --lts
-irm https://claude.ai/install.ps1 | iex
+git config --global http.sslBackend schannel
 git config --global user.name  "Your Name"
 git config --global user.email "you@work.com"
+irm https://claude.ai/install.ps1 | iex
 gh auth login
 ```
 
-`fnm install --lts` makes that version the default automatically. Open a **new** tab, then:
+`http.sslBackend schannel` makes Git trust Windows' certificate store. Without it,
+`git clone` fails behind a company proxy that inspects HTTPS. The name and email are just
+text; `gh auth login` is the step that needs your GitHub account (pick GitHub.com →
+HTTPS → Login with a web browser). Claude Code logs in with your Claude account, not GitHub.
+
+Open a **new** tab, then:
 
 ```powershell
-node --version
 claude          # log in once
+```
+
+**If `npm install` fails with `SELF_SIGNED_CERT_IN_CHAIN`**, make Node trust Windows'
+certificate store, then open a new tab:
+
+```powershell
+[Environment]::SetEnvironmentVariable('NODE_OPTIONS', '--use-system-ca', 'User')
 ```
 
 **Optional, for a personal email on personal repos.** Anything cloned under

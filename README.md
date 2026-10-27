@@ -13,7 +13,7 @@ its `starship.toml` from there too. Change the prompt in that repo, not here.
 
 | Where | What gets installed |
 |---|---|
-| Windows (`setup-windows.ps1`) | Windows Terminal (themed, Nerd Font, Ubuntu as default tab), GitHub CLI, Starship, fnm + Node LTS, eza, bat, fd, fzf (+ PSFzf keybindings), zoxide, ripgrep, jq, Claude Code CLI, PowerShell profile with the same aliases as bash (`ls`/`ll`/`la`/`tree` → eza, `cat` → bat), git identity, `.wslconfig` |
+| Windows (`setup-windows.ps1`) | Windows Terminal (themed, Nerd Font, Ubuntu as default tab), GitHub CLI, Starship, Node LTS, eza, bat, fd, fzf (+ PSFzf keybindings), zoxide, ripgrep, jq, Claude Code CLI, PowerShell profile with the same aliases as bash (`ls`/`ll`/`la`/`tree` → eza, `cat` → bat), git identity, `.wslconfig` |
 | WSL Ubuntu (`wsl/setup.sh`) | build tools, ripgrep, fd, jq, GitHub CLI, devcon-dotfiles, fnm + Node LTS, Neovim ≥ 0.11.2, Miniforge (conda), Claude Code CLI, git identity |
 
 ## Before you start (by hand, once)
@@ -95,7 +95,7 @@ done and back up any file they replace (`*.bak`).
   in Explorer, and `code .` opens it in VS Code if you use it.
 - **Python:** `conda create -n myproj python=3.12 && conda activate myproj`. The base
   env doesn't auto-activate, and Starship shows the active env.
-- **Node:** fnm switches versions per project from `.nvmrc` / `.node-version` (`fnm use`, `fnm install 20`).
+- **Node:** on Windows it's a plain install (one version). In WSL, fnm switches versions per project from `.nvmrc` / `.node-version` (`fnm use`, `fnm install 20`).
 - **Claude Code** is installed twice, once on Windows and once in WSL. Use the WSL one for
   Linux projects (it supports sandboxing), and the Windows one for Windows-only projects.
 
