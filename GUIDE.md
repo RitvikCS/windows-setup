@@ -151,42 +151,12 @@ there just creates the missing `PowerShell` folder. Don't run plain `New-Item -F
 existing profile: it empties the file. If `Test-Path` printed `True`, read what's already in it
 before replacing it.
 
-Paste this, then save. It's also in the repo as
+Copy the profile from
 [windows/profile.ps1](https://github.com/RitvikCS/windows-setup/blob/main/windows/profile.ps1)
-(click **Raw** to copy it):
-
-```powershell
-# Claude Code's installer puts claude.exe here
-$localBin = Join-Path $HOME '.local\bin'
-if ((Test-Path $localBin) -and (($env:PATH -split ';') -notcontains $localBin)) {
-    $env:PATH = "$localBin;$env:PATH"
-}
-
-# eza / bat instead of ls / cat (these return text: use Get-ChildItem / Get-Content in pipelines)
-Remove-Item Alias:ls -Force -ErrorAction SilentlyContinue
-Remove-Item Alias:cat -Force -ErrorAction SilentlyContinue
-function ls   { eza --icons=auto @args }
-function ll   { eza -l --icons=auto --git @args }
-function la   { eza -la --icons=auto --git @args }
-function tree { eza --tree --icons=auto @args }
-function cat  { bat --paging=never @args }
-
-# fzf lists files with fd; PSFzf gives Ctrl+R history, Ctrl+T files, Alt+C cd
-$env:FZF_DEFAULT_COMMAND = 'fd --type f --hidden --follow --exclude .git'
-$env:FZF_CTRL_T_COMMAND  = $env:FZF_DEFAULT_COMMAND
-$env:FZF_ALT_C_COMMAND   = 'fd --type d --hidden --follow --exclude .git'
-if (Get-Module -ListAvailable PSFzf) {
-    Import-Module PSFzf
-    Set-PsFzfOption -PSReadlineChordProvider 'Ctrl+t' -PSReadlineChordReverseHistory 'Ctrl+r'
-    Set-PSReadLineKeyHandler -Key 'Alt+c' -ScriptBlock { Invoke-FuzzySetLocation }
-}
-
-# zoxide: z <dir> jumps, zi picks
-Invoke-Expression (& { (zoxide init powershell | Out-String) })
-
-# starship last
-Invoke-Expression (& starship init powershell)
-```
+(click **Raw**, select all, copy), paste it into Notepad, and save. That file is the only copy,
+so re-copy it whenever it changes. It wires up eza/bat aliases, fzf keys, zoxide and Starship,
+skips any tool it can't find, and caches the Starship/zoxide setup in `~\.cache\pwsh-init` so new
+tabs start faster.
 
 Install the fzf keybindings module (answer **Y** if it asks about an untrusted repository):
 
@@ -199,6 +169,29 @@ Install-Module PSFzf -Scope CurrentUser
 
 > If it says "running scripts is disabled", your company locks the execution policy.
 > Try `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned`. If that's refused, ask IT.
+
+**Startup time:** a cold start (first tab after the laptop's been idle) can take 3-4 s and a warm
+one about 0.6 s. That's Windows reloading files and antivirus scanning them, not the profile.
+
+## 4a. Optional: the same prompt in Windows PowerShell 5.1
+
+PowerShell 7 and the built-in Windows PowerShell 5.1 each read their own profile, so 5.1 stays
+plain. That's fine if you only use 7. To match, run these **in Windows PowerShell 5.1**:
+
+```powershell
+Set-ExecutionPolicy -Scope CurrentUser RemoteSigned
+Add-Content $PROFILE '. "$HOME\Documents\PowerShell\Microsoft.PowerShell_profile.ps1"'
+```
+
+The first line lets 5.1 run profiles (it blocks all scripts by default; if it says the setting is
+overridden by policy, IT controls it). The second makes 5.1's profile load your PowerShell 7
+profile, so there's still only one file to maintain. Mind the quotes: single outside, double inside.
+
+fzf shortcuts stay 7-only unless you also run `Install-Module PSFzf -Scope CurrentUser` in 5.1
+(answer Y to the NuGet prompt; if it can't reach the package source, first run
+`[Net.ServicePointManager]::SecurityProtocol = 'Tls12'`).
+
+**Check:** a new Windows PowerShell 5.1 window shows the Starship prompt.
 
 ---
 
