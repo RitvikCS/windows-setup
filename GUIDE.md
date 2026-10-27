@@ -139,9 +139,17 @@ Notepad asks to create the file: click Yes. Paste the contents of
 **Profile.** Type:
 
 ```powershell
-New-Item -ItemType File -Force $PROFILE
+$PROFILE
+Test-Path $PROFILE
+if (-not (Test-Path $PROFILE)) { New-Item -ItemType File -Path $PROFILE -Force }
 notepad $PROFILE
 ```
+
+`$PROFILE` prints where the file lives (usually `Documents\PowerShell\Microsoft.PowerShell_profile.ps1`,
+possibly inside OneDrive on a work laptop). The file is only created if it's missing; `-Force`
+there just creates the missing `PowerShell` folder. Don't run plain `New-Item -Force` on an
+existing profile: it empties the file. If `Test-Path` printed `True`, read what's already in it
+before replacing it.
 
 Paste this, then save. It's also in the repo as
 [windows/profile.ps1](https://github.com/RitvikCS/windows-setup/blob/main/windows/profile.ps1)
