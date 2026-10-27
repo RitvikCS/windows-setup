@@ -5,8 +5,30 @@
 # Each tool is only wired up if it's found, so a shell started with a stale
 # PATH (e.g. VS Code opened before the winget installs) stays quiet instead of
 # printing errors. Restart that app to pick the tools up.
+#
+# Startup speed: every program launched here is scanned by antivirus, so the
+# starship/zoxide init scripts are generated once into ~/.cache/pwsh-init and
+# reused; they're regenerated automatically when the tool's exe is updated.
+# Delete that folder to force a refresh.
 
-function Test-Command { param($Name) [bool](Get-Command $Name -ErrorAction SilentlyContinue) }
+# -CommandType Application: only look at PATH. Without it, a miss makes
+# PowerShell search every installed module, which can take seconds.
+function Test-Command { param($Name) [bool](Get-Command $Name -CommandType Application -ErrorAction SilentlyContinue) }
+
+# Path to a cached init script for $Name, regenerated when the exe is newer
+function Get-InitCache {
+    param([string]$Name, [scriptblock]$Generate)
+    $exe = Get-Command $Name -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
+    if (-not $exe) { return $null }
+    $cache = Join-Path $HOME ".cache\pwsh-init\$Name.ps1"
+    $stale = -not (Test-Path $cache)
+    if (-not $stale) { $stale = (Get-Item $exe.Source).LastWriteTime -gt (Get-Item $cache).LastWriteTime }
+    if ($stale) {
+        New-Item -ItemType Directory -Force -Path (Split-Path $cache) | Out-Null
+        & $Generate | Out-File -FilePath $cache -Encoding utf8
+    }
+    return $cache
+}
 
 # Claude Code's installer puts claude.exe here
 $localBin = Join-Path $HOME '.local\bin'
@@ -33,18 +55,18 @@ if (Test-Command fd) {
     $env:FZF_CTRL_T_COMMAND  = $env:FZF_DEFAULT_COMMAND
     $env:FZF_ALT_C_COMMAND   = 'fd --type d --hidden --follow --exclude .git'
 }
-if ((Test-Command fzf) -and (Get-Module -ListAvailable PSFzf)) {
-    Import-Module PSFzf
-    Set-PsFzfOption -PSReadlineChordProvider 'Ctrl+t' -PSReadlineChordReverseHistory 'Ctrl+r'
-    Set-PSReadLineKeyHandler -Key 'Alt+c' -ScriptBlock { Invoke-FuzzySetLocation }
+if (Test-Command fzf) {
+    Import-Module PSFzf -ErrorAction SilentlyContinue
+    if (Get-Module PSFzf) {
+        Set-PsFzfOption -PSReadlineChordProvider 'Ctrl+t' -PSReadlineChordReverseHistory 'Ctrl+r'
+        Set-PSReadLineKeyHandler -Key 'Alt+c' -ScriptBlock { Invoke-FuzzySetLocation }
+    }
 }
 
 # zoxide: z <dir> jumps, zi picks
-if (Test-Command zoxide) {
-    Invoke-Expression (& { (zoxide init powershell | Out-String) })
-}
+$zoxideInit = Get-InitCache zoxide { zoxide init powershell }
+if ($zoxideInit) { . $zoxideInit }
 
-# starship last
-if (Test-Command starship) {
-    Invoke-Expression (& starship init powershell)
-}
+# starship last (--print-full-init: the plain init would launch starship a second time)
+$starshipInit = Get-InitCache starship { starship init powershell --print-full-init }
+if ($starshipInit) { . $starshipInit }
