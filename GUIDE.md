@@ -196,16 +196,26 @@ Install-Module PSFzf -Scope CurrentUser
 
 ## 5. Node, Claude Code, git, GitHub (Windows)
 
+First check Git can reach GitHub through the company network (no login needed):
+
 ```powershell
-git config --global http.sslBackend schannel
+git config --show-origin --get-all http.sslBackend
+git ls-remote https://github.com/RitvikCS/windows-setup
+```
+
+If `ls-remote` prints `refs/heads/main`, Git already works. Git for Windows' installer
+usually sets `schannel` (Windows' certificate store) in `C:\Program Files\Git\etc\gitconfig`.
+Only if it says `SSL certificate problem`, run
+`git config --global http.sslBackend schannel` and test again.
+
+```powershell
 git config --global user.name  "Your Name"
 git config --global user.email "you@work.com"
 irm https://claude.ai/install.ps1 | iex
 gh auth login
 ```
 
-`http.sslBackend schannel` makes Git trust Windows' certificate store. Without it,
-`git clone` fails behind a company proxy that inspects HTTPS. The name and email are just
+The name and email are just
 text; `gh auth login` is the step that needs your GitHub account (pick GitHub.com →
 HTTPS → Login with a web browser). Claude Code logs in with your Claude account, not GitHub.
 
